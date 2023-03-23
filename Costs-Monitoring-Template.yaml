@@ -1,0 +1,162 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates 2 AWS budget (Montly & Daily ) and Cost Anomaly Detections with thresholds 100/200/300USD + notifications when you exceed thresholds.
+Parameters:
+  Name:
+    Description: The name of the budget
+    Type: String
+    Default: BudgetMyCompanyName
+  AmountMonthly:
+    Description: What your budget is for the month example 2000
+    Type: Number
+  AmountDaily:
+    Description: What your budget is for the daily example 50
+    Type: Number
+  Currency:
+    Description: The currency (USD/EUR)of your budget
+    Type: String
+    Default: USD
+  FirstThreshold:
+    Description: The first threshold at which you'll receive a notification
+    Type: Number
+    Default: 85
+  SecondThreshold:
+    Description: The second threshold at which you'll receive a notification
+    Type: Number
+    Default: 100
+  Email:
+    Description: The email address to send notifications to example johan@mycompany.cloud
+    Type: String
+# Order the parameters in a way that makes more sense (not alphabetized)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - Name
+          - Amount
+          - Currency
+          - FirstThreshold
+          - SecondThreshold
+          - Email
+Resources:
+### Montly Budget ###
+  Budget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Join [ "-", [!Ref 'Name',MONTLY]]
+        BudgetLimit:
+          Amount: !Ref AmountMonthly
+          Unit: !Ref Currency
+        TimeUnit: MONTHLY
+        BudgetType: COST
+      # "A budget can have up to five notifications. Each notification must have at least one subscriber.
+      # A notification can have one SNS subscriber and up to ten email subscribers, for a total of 11 subscribers."
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: !Ref FirstThreshold
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref Email
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: !Ref SecondThreshold
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref Email
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref Email      
+### Daily Budget ###
+  DailyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Join [ "-", [!Ref 'Name',DAILY]]
+        BudgetLimit:
+          Amount: !Ref AmountDaily
+          Unit: !Ref Currency
+        TimeUnit: DAILY
+        BudgetType: COST
+      # "A budget can have up to five notifications. Each notification must have at least one subscriber.
+      # A notification can have one SNS subscriber and up to ten email subscribers, for a total of 11 subscribers."
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: !Ref FirstThreshold
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref Email
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: !Ref SecondThreshold
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref Email
+### Cost Anomaly Detection ###
+  AnomalyServiceMonitor:
+    Type: 'AWS::CE::AnomalyMonitor'
+    Properties:
+      MonitorName: !Ref Name
+      MonitorType: 'DIMENSIONAL'
+      MonitorDimension: 'SERVICE' 
+
+  AnomalySubscription100:
+    Type: 'AWS::CE::AnomalySubscription'
+    Properties:
+      SubscriptionName: "100USD"
+      Threshold: 100
+      Frequency: "DAILY"
+      MonitorArnList: [
+         !Ref AnomalyServiceMonitor
+      ]
+      Subscribers: [
+        {
+          "Type": "EMAIL",
+          "Address": !Ref Email
+        }
+      ]
+  AnomalySubscription200:
+    Type: 'AWS::CE::AnomalySubscription'
+    Properties:
+      SubscriptionName: "200USD"
+      Threshold: 200
+      Frequency: "DAILY"
+      MonitorArnList: [
+         !Ref AnomalyServiceMonitor
+      ]
+      Subscribers: [
+        {
+          "Type": "EMAIL",
+          "Address": !Ref Email
+        }
+      ]
+  AnomalySubscription300:
+    Type: 'AWS::CE::AnomalySubscription'
+    Properties:
+      SubscriptionName: "300USD"
+      Threshold: 300
+      Frequency: "DAILY"
+      MonitorArnList: [
+         !Ref AnomalyServiceMonitor
+      ]
+      Subscribers: [
+        {
+          "Type": "EMAIL",
+          "Address": !Ref Email
+        }
+      ]
+
